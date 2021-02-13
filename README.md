@@ -53,3 +53,15 @@ sudo cp out/Headless/headless_shell /usr/local/bin/
 sudo apt install npm
 npm i puppeteer-core
 npm i puppeteer-cluster
+# put some domains in /home/regex/domains.txt, e.g.:
+echo 'https://google.com' > /home/regex/domains.txt
+echo 'https://apple.com' >> /home/regex/domains.txt
+node fetch.js > /home/regex/regex.log
+createdb regex
+grep -E '^RegExp' /home/regex/regex.log > /home/regex/regex.csv
+psql -f regex.sql
+psql -c "SELECT process_regex_log()"
+
+
+
+
