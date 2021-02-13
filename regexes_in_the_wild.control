@@ -1,5 +1,0 @@
-# regexes in the wild
-comment = 'regexes_in_the_wild'
-default_version = '1.0'
-superuser = false
-schema = regexes_in_the_wild

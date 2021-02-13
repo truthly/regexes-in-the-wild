@@ -4,7 +4,7 @@
 
 <h2 id="about">1. What is it?</h2>
 
-☢️ This project is **expertimental** and **unreleased**. Nothing is working yet, this is **W**ork-**I**n-**P**rogress. Breaking changes can be made at any time.
+☢️ This project is **expertimental** and **unreleased**. This is **W**ork-**I**n-**P**rogress. Breaking changes can be made at any time.
 
 This is a tool to build a dataset of regular expressions (regexes) found in the wild,
 by crawling the front-pages for a list of websites, using a patched [Chromium],
@@ -59,9 +59,8 @@ echo 'https://apple.com' >> /home/regex/domains.txt
 node fetch.js > /home/regex/regex.log
 createdb regex
 grep -E '^RegExp.*,.*,.*,' /home/regex/regex.log > /home/regex/regex.csv
-psql -f regex.sql
-psql -c "SELECT process_regex_log()"
-
-
-
-
+psql -f init.sql
+psql -f verify.sql
+# verify the above produces 0 rows
+# then patch PostgreSQL, reinstall, restart and rerun:
+psql -f verify.sql
