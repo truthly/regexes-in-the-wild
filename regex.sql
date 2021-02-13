@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS import_log, patterns, subjects;
+
 CREATE TABLE import_log (
 source text NOT NULL,
 pattern text NOT NULL,
@@ -20,13 +22,6 @@ subject text NOT NULL,
 count bigint NOT NULL,
 PRIMARY KEY (subject_id)
 );
-
-CREATE OR REPLACE FUNCTION process_regex_log()
-RETURNS void
-LANGUAGE sql
-AS $$
-
-TRUNCATE import_log;
 
 COPY import_log FROM '/home/regex/regex.csv' WITH DELIMITER ',' NULL '';
 
@@ -52,6 +47,3 @@ SELECT
 FROM import_log
 WHERE subject IS NOT NULL
 GROUP BY pattern, subject;
-
-TRUNCATE import_log;
-$$;
