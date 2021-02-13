@@ -58,7 +58,7 @@ echo 'https://google.com' > /home/regex/domains.txt
 echo 'https://apple.com' >> /home/regex/domains.txt
 node fetch.js > /home/regex/regex.log
 createdb regex
-grep -E '^RegExp' /home/regex/regex.log > /home/regex/regex.csv
+grep -E '^RegExp.*,.*,.*,' /home/regex/regex.log > /home/regex/regex.csv
 psql -f regex.sql
 psql -c "SELECT process_regex_log()"
 
