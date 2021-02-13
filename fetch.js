@@ -23,7 +23,7 @@ const fs = require('fs');
   });
 
   const readInterface = readline.createInterface({
-    input: fs.createReadStream('domains.txt')
+    input: fs.createReadStream('/home/regex/domains.txt')
   });
   readInterface.on('line', function(line) {
     cluster.queue(line);
