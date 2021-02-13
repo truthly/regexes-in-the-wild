@@ -1,3 +1,5 @@
+\timing
+
 DROP TABLE IF EXISTS import_log, patterns, subjects;
 
 CREATE TABLE import_log (
@@ -26,7 +28,7 @@ error text,
 PRIMARY KEY (subject_id)
 );
 
-COPY import_log FROM '/home/regex/regex.csv' WITH DELIMITER ',' NULL '';
+\COPY import_log FROM 'regex.csv' WITH DELIMITER ',' NULL '';
 
 ALTER TABLE import_log ADD COLUMN pattern_bytes bytea;
 ALTER TABLE import_log ADD COLUMN subject_bytes bytea;
@@ -37,12 +39,14 @@ UPDATE import_log SET
 ;
 
 DELETE FROM import_log
-WHERE position('\xeda0' in pattern_bytes) > 0
-   OR position('\xeda0' in subject_bytes) > 0;
+WHERE (position('\xed' in pattern_bytes) > 0 AND pattern_bytes::text ~ '^\\x([0-9a-f]{2})*ed[^89]')
+   OR (position('\xed' in subject_bytes) > 0 AND subject_bytes::text ~ '^\\x([0-9a-f]{2})*ed[^89]')
+;
 
 DELETE FROM import_log
-WHERE position('\xedb0' in pattern_bytes) > 0
-   OR position('\xedb0' in subject_bytes) > 0;
+WHERE (position('\xe0' in pattern_bytes) > 0 AND pattern_bytes::text ~ '^\\x([0-9a-f]{2})*e0[^ab]')
+   OR (position('\xe0' in subject_bytes) > 0 AND subject_bytes::text ~ '^\\x([0-9a-f]{2})*e0[^ab]')
+;
 
 UPDATE import_log SET
   pattern = convert_from(pattern_bytes,'utf8'),
@@ -120,3 +124,6 @@ END LOOP;
 RETURN;
 END
 $$;
+
+CALL process_regexes();
+
