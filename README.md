@@ -60,7 +60,10 @@ node fetch.js > /home/regex/regex.log
 createdb regex
 grep -E '^RegExp.*,.*,.*,' /home/regex/regex.log > /home/regex/regex.csv
 psql -f init.sql
-psql -f verify.sql
-# verify the above produces 0 rows
-# then patch PostgreSQL, reinstall, restart and rerun:
-psql -f verify.sql
+psql -f create_regexp_tests.sql
+psql -f verify_regexp_tests.sql
+psql -c "SELECT create_regexp_tests()"
+psql -c "SELECT verify_regexp_tests()"
+# patch PostgreSQL's regex engine and restart
+psql -c "SELECT verify_regexp_tests()"
+# returns true if there are no deviations
