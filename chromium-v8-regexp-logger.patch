@@ -1,5 +1,5 @@
 diff --git a/src/regexp/regexp.cc b/src/regexp/regexp.cc
-index 5f83269a8f..9c9b21e994 100644
+index 5f83269a8f..b430df2038 100644
 --- a/src/regexp/regexp.cc
 +++ b/src/regexp/regexp.cc
 @@ -24,6 +24,60 @@
@@ -63,10 +63,12 @@ index 5f83269a8f..9c9b21e994 100644
  using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
  
  class RegExpImpl final : public AllStatic {
-@@ -154,6 +208,22 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
-                                     Handle<String> pattern,
-                                     JSRegExp::Flags flags,
-                                     uint32_t backtrack_limit) {
+@@ -280,6 +334,25 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
+                                  Handle<String> subject, int index,
+                                  Handle<RegExpMatchInfo> last_match_info,
+                                  ExecQuirks exec_quirks) {
++  String pattern = regexp->Pattern();
++  JSRegExp::Flags flags = regexp->GetFlags();
 +  int i = 0;
 +  EmbeddedVector<char, 128> buf;
 +  if (flags & JSRegExp::kGlobal) buf[i++] = 'g';
@@ -76,25 +78,10 @@ index 5f83269a8f..9c9b21e994 100644
 +  if (flags & JSRegExp::kSticky) buf[i++] = 'y';
 +  buf[i] = '\0';
 +  char* str;
-+  int len = asprintf(&str, "\nRegExp::Compile,%s,,%s\n", base64_encode(pattern->ToCString()).c_str(),buf.begin());
++  int len = asprintf(&str, "\nRegExp::Exec,%s,%s,%s\n", base64_encode(pattern.ToCString()).c_str(), base64_encode(subject->ToCString()).c_str(), buf.begin());
 +  if (len > 0) {
 +    ssize_t bytes_written = write(1, str, len);
-+    len -= (int) bytes_written;
-+  }
-+  free(str);
-+
-   DCHECK(pattern->IsFlat());
- 
-   // Caching is based only on the pattern and flags, but code also differs when
-@@ -280,6 +350,15 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
-                                  Handle<String> subject, int index,
-                                  Handle<RegExpMatchInfo> last_match_info,
-                                  ExecQuirks exec_quirks) {
-+  String pattern = regexp->Pattern();
-+  char* str;
-+  int len = asprintf(&str, "\nRegExp::Exec,%s,%s\n", base64_encode(pattern.ToCString()).c_str(), base64_encode(subject->ToCString()).c_str());
-+  if (len > 0) {
-+    ssize_t bytes_written = write(1, str, len);
++    assert(bytes_written >= 0);
 +    len -= (int) bytes_written;
 +  }
 +  free(str);
@@ -102,29 +89,25 @@ index 5f83269a8f..9c9b21e994 100644
    switch (regexp->TypeTag()) {
      case JSRegExp::NOT_COMPILED:
        UNREACHABLE();
-@@ -300,6 +379,13 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
- void RegExpImpl::AtomCompile(Isolate* isolate, Handle<JSRegExp> re,
-                              Handle<String> pattern, JSRegExp::Flags flags,
-                              Handle<String> match_pattern) {
-+  char* str;
-+  int len = asprintf(&str, "\nRegExpImpl::AtomCompile,%s,\n", base64_encode(pattern->ToCString()).c_str());
-+  if (len > 0) {
-+    ssize_t bytes_written = write(1, str, len);
-+    len -= (int) bytes_written;
-+  }
-+  free(str);
-   isolate->factory()->SetRegExpAtomData(re, pattern, flags, match_pattern);
- }
- 
-@@ -317,6 +403,15 @@ static void SetAtomLastCapture(Isolate* isolate,
+@@ -317,6 +390,25 @@ static void SetAtomLastCapture(Isolate* isolate,
  int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
                              Handle<String> subject, int index, int32_t* output,
                              int output_size) {
 +  String pattern = regexp->Pattern();
++  JSRegExp::Flags flags = regexp->GetFlags();
++  int i = 0;
++  EmbeddedVector<char, 128> buf;
++  if (flags & JSRegExp::kGlobal) buf[i++] = 'g';
++  if (flags & JSRegExp::kIgnoreCase) buf[i++] = 'i';
++  if (flags & JSRegExp::kMultiline) buf[i++] = 'm';
++  if (flags & JSRegExp::kUnicode) buf[i++] = 'u';
++  if (flags & JSRegExp::kSticky) buf[i++] = 'y';
++  buf[i] = '\0';
 +  char* str;
-+  int len = asprintf(&str, "\nRegExpImpl::AtomExecRaw,%s,%s\n", base64_encode(pattern.ToCString()).c_str(), base64_encode(subject->ToCString()).c_str());
++  int len = asprintf(&str, "\nRegExpImpl::AtomExecRaw,%s,%s,%s\n", base64_encode(pattern.ToCString()).c_str(), base64_encode(subject->ToCString()).c_str(), buf.begin());
 +  if (len > 0) {
 +    ssize_t bytes_written = write(1, str, len);
++    assert(bytes_written >= 0);
 +    len -= (int) bytes_written;
 +  }
 +  free(str);
@@ -132,15 +115,25 @@ index 5f83269a8f..9c9b21e994 100644
    DCHECK_LE(0, index);
    DCHECK_LE(index, subject->length());
  
-@@ -364,6 +459,15 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
+@@ -364,6 +456,25 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
  Handle<Object> RegExpImpl::AtomExec(Isolate* isolate, Handle<JSRegExp> re,
                                      Handle<String> subject, int index,
                                      Handle<RegExpMatchInfo> last_match_info) {
 +  String pattern = re->Pattern();
++  JSRegExp::Flags flags = re->GetFlags();
++  int i = 0;
++  EmbeddedVector<char, 128> buf;
++  if (flags & JSRegExp::kGlobal) buf[i++] = 'g';
++  if (flags & JSRegExp::kIgnoreCase) buf[i++] = 'i';
++  if (flags & JSRegExp::kMultiline) buf[i++] = 'm';
++  if (flags & JSRegExp::kUnicode) buf[i++] = 'u';
++  if (flags & JSRegExp::kSticky) buf[i++] = 'y';
++  buf[i] = '\0';
 +  char* str;
-+  int len = asprintf(&str, "\nRegExpImpl::AtomExec,%s,%s\n", base64_encode(pattern.ToCString()).c_str(), base64_encode(subject->ToCString()).c_str());
++  int len = asprintf(&str, "\nRegExpImpl::AtomExec,%s,%s,%s\n", base64_encode(pattern.ToCString()).c_str(), base64_encode(subject->ToCString()).c_str(), buf.begin());
 +  if (len > 0) {
 +    ssize_t bytes_written = write(1, str, len);
++    assert(bytes_written >= 0);
 +    len -= (int) bytes_written;
 +  }
 +  free(str);
