@@ -69,7 +69,8 @@ update_patterns AS
   UPDATE subjects
   SET count = subjects.count + agg_subjects.count
   FROM agg_subjects, patterns
-  WHERE agg_subjects.subject_hash = subjects.subject_hash
+  WHERE subjects.pattern_id   = patterns.pattern_id
+    AND subjects.subject_hash = agg_subjects.subject_hash
     AND agg_subjects.pattern_hash = patterns.pattern_hash
     AND agg_subjects.flags        = patterns.flags
 )
