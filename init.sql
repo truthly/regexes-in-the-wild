@@ -19,14 +19,62 @@ PRIMARY KEY (pattern_id)
 
 CREATE TABLE subjects (
 subject_id bigint NOT NULL GENERATED ALWAYS AS IDENTITY,
-pattern text NOT NULL,
+pattern_id bigint NOT NULL REFERENCES patterns,
 subject text NOT NULL,
 count bigint NOT NULL,
+PRIMARY KEY (subject_id)
+);
+
+CREATE TABLE server_versions (
+server_version_num integer NOT NULL,
+server_version text NOT NULL,
+PRIMARY KEY (server_version_num),
+UNIQUE (server_version)
+);
+
+CREATE TABLE tests (
+test_id uuid NOT NULL DEFAULT gen_random_uuid(),
+subject_id bigint NOT NULL REFERENCES subjects,
+server_version_num integer REFERENCES  server_versions,
+duration interval NOT NULL,
 is_match boolean,
 captured text[],
 error text,
-PRIMARY KEY (subject_id)
+PRIMARY KEY (test_id),
+UNIQUE (subject_id, server_version_num)
 );
+
+ALTER TABLE tests RENAME COLUMN test_id TO test_id_bigint;
+ALTER TABLE tests ADD COLUMN test_id uuid NOT NULL DEFAULT gen_random_uuid();
+ALTER TABLE tests DROP CONSTRAINT "tests_pkey";
+ALTER TABLE tests ADD PRIMARY KEY (test_id);
+
+CREATE TABLE deviations (
+deviation_id uuid NOT NULL DEFAULT gen_random_uuid(),
+test_id uuid NOT NULL REFERENCES tests,
+duration interval NOT NULL,
+is_match boolean,
+captured text[],
+error text,
+PRIMARY KEY (deviation_id)
+);
+
+CREATE VIEW vtests AS
+SELECT
+tests.test_id,
+tests.subject_id,
+tests.duration,
+tests.is_match,
+cardinality(tests.captured) AS cardinality,
+hash_array(tests.captured) AS hash,
+tests.error,
+ARRAY[length(patterns.pattern),length(subjects.subject)] AS lengths,
+format('%L ~ %L',LEFT(subjects.subject,40), LEFT(patterns.pattern,40)) AS expr
+FROM tests
+JOIN subjects ON subjects.subject_id = tests.subject_id
+JOIN patterns ON patterns.pattern_id = subjects.pattern_id
+;
+
 
 \COPY import_log FROM 'regex.csv' WITH DELIMITER ',' NULL '';
 
@@ -70,60 +118,3 @@ SELECT
 FROM import_log
 WHERE subject IS NOT NULL
 GROUP BY pattern, subject;
-
-CREATE OR REPLACE PROCEDURE process_regexes()
-LANGUAGE plpgsql
-AS $$
-DECLARE
-_count_subjects bigint;
-_subject_id bigint;
-_pattern text;
-_subject text;
-_is_match boolean;
-_captured text[];
-_i bigint := 0;
-_t0 double precision;
-BEGIN
-_t0 := extract(epoch from clock_timestamp());
-SELECT COUNT(*) INTO _count_subjects FROM subjects;
-FOR
-  _subject_id,
-  _pattern,
-  _subject
-IN
-SELECT
-  subject_id,
-  pattern,
-  subject
-FROM subjects
-ORDER BY subject_id
-LOOP
-  BEGIN
-    _is_match := _subject ~ _pattern;
-    _captured := regexp_match(_subject, _pattern);
-  EXCEPTION WHEN OTHERS THEN
-    UPDATE subjects SET
-      error = SQLERRM
-    WHERE subject_id = _subject_id;
-    CONTINUE;
-  END;
-  UPDATE subjects SET
-    is_match = _is_match,
-    captured = _captured
-  WHERE subject_id = _subject_id;
-  _i := _i + 1;
-  IF _i % 1000 = 0 THEN
-    RAISE NOTICE '% %% (%/%) ETA %',
-      ROUND(_i::numeric/_count_subjects*100,2),
-      _i,
-      _count_subjects,
-      format('%s s', (extract(epoch from clock_timestamp()) - _t0) * (1.0 / (_i::numeric / _count_subjects) - 1.0))::interval;
-    COMMIT;
-  END IF;
-END LOOP;
-RETURN;
-END
-$$;
-
-CALL process_regexes();
-
