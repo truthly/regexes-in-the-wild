@@ -15,6 +15,22 @@ pattern text,
 subject text
 );
 
+CREATE TABLE agg_patterns (
+pattern text NOT NULL,
+pattern_hash bytea NOT NULL,
+flags text NOT NULL,
+count bigint NOT NULL,
+PRIMARY KEY (pattern_hash, flags)
+);
+
+CREATE TABLE agg_subjects (
+pattern_id bigint NOT NULL,
+subject text NOT NULL,
+subject_hash bytea NOT NULL,
+count bigint NOT NULL,
+PRIMARY KEY (subject_hash, pattern_id)
+);
+
 CREATE TABLE patterns (
 pattern_id bigint NOT NULL GENERATED ALWAYS AS IDENTITY,
 pattern text NOT NULL,
@@ -32,7 +48,7 @@ subject text NOT NULL,
 subject_hash bytea NOT NULL,
 count bigint NOT NULL,
 PRIMARY KEY (subject_id),
-UNIQUE (pattern_id, subject_hash)
+UNIQUE (subject_hash, pattern_id)
 );
 
 CREATE TABLE server_versions (
