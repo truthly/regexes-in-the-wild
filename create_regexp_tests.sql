@@ -7,6 +7,7 @@ _count_subjects bigint;
 _subject_id bigint;
 _pattern text;
 _subject text;
+_flags text;
 _is_match boolean;
 _captured text[];
 _error text;
@@ -16,7 +17,7 @@ _server_version_num constant integer := current_setting('server_version_num')::i
 _server_version constant text := current_setting('server_version');
 _t timestamptz;
 _duration interval;
-_test_id bigint;
+_test_id uuid;
 _min_log_duration constant interval := '500 ms'::interval;
 BEGIN
 IF EXISTS
@@ -36,14 +37,17 @@ SELECT COUNT(*) INTO _count_subjects FROM subjects;
 FOR
   _subject_id,
   _pattern,
-  _subject
+  _subject,
+  _flags
 IN
 SELECT
-  subject_id,
-  pattern,
-  subject
+  subjects.subject_id,
+  patterns.pattern,
+  subjects.subject,
+  patterns.flags
 FROM subjects
-ORDER BY subject_id
+JOIN patterns ON patterns.pattern_id = subjects.pattern_id
+ORDER BY subjects.subject_id
 LOOP
   _is_match := NULL;
   _captured := NULL;
@@ -51,7 +55,7 @@ LOOP
   _t        := clock_timestamp();
   BEGIN
     _is_match := _subject ~ _pattern;
-    _captured := regexp_match(_subject, _pattern);
+    _captured := regexp_match(_subject, _pattern, _flags);
   EXCEPTION WHEN OTHERS THEN
     _error := SQLERRM;
   END;

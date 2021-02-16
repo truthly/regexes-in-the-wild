@@ -51,6 +51,17 @@ PRIMARY KEY (subject_id),
 UNIQUE (subject_hash, pattern_id)
 );
 
+CREATE VIEW vsubjects AS
+SELECT
+patterns.pattern,
+subjects.subject,
+subjects.count,
+patterns.pattern_id,
+subjects.subject_id
+FROM patterns
+JOIN subjects ON subjects.pattern_id = patterns.pattern_id;
+
+
 CREATE TABLE server_versions (
 server_version_num integer NOT NULL,
 server_version text NOT NULL,
@@ -95,3 +106,11 @@ FROM tests
 JOIN subjects ON subjects.subject_id = tests.subject_id
 JOIN patterns ON patterns.pattern_id = subjects.pattern_id
 ;
+
+CREATE VIEW vstats AS
+SELECT
+  (SELECT COUNT(*) FROM patterns) AS patterns,
+  (SELECT COUNT(*) FROM subjects) AS subjects
+;
+
+  
