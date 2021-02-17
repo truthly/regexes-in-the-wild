@@ -7,6 +7,7 @@ _count_tests bigint;
 _subject_id bigint;
 _pattern text;
 _subject text;
+_flags text;
 _is_match boolean;
 _captured text[];
 _error text;
@@ -20,6 +21,7 @@ _duration interval;
 _test_id uuid;
 _min_log_duration constant interval := '500 ms'::interval;
 _server_version_num integer;
+_current_server_version_num constant integer := current_setting('server_version_num')::integer;
 _deviations bigint := 0;
 BEGIN
 IF _server_version IS NULL THEN
@@ -35,11 +37,24 @@ IF NOT FOUND THEN
   RAISE NOTICE 'Tests not yet created for server version %', _server_version USING HINT = 'CALL create_regexp_tests() instead';
   RETURN FALSE;
 END IF;
+
+IF NOT EXISTS
+(
+  SELECT 1 FROM server_versions
+  WHERE server_version_num = _current_server_version_num
+) THEN
+  INSERT INTO server_versions
+    (server_version_num, server_version)
+  VALUES
+    (_current_server_version_num, current_setting('server_version'));
+END IF;
+
 SELECT COUNT(*) INTO _count_tests FROM tests WHERE server_version_num = _server_version_num;
 FOR
   _test_id,
   _pattern,
   _subject,
+  _flags,
   _expected_is_match,
   _expected_captured,
   _expected_error
@@ -48,6 +63,7 @@ SELECT
   tests.test_id,
   patterns.pattern,
   subjects.subject,
+  patterns.flags,
   tests.is_match,
   tests.captured,
   tests.error
@@ -63,21 +79,21 @@ LOOP
   _t        := clock_timestamp();
   BEGIN
     _is_match := _subject ~ _pattern;
-    _captured := regexp_match(_subject, _pattern);
+    _captured := regexp_match(_subject, _pattern, _flags);
   EXCEPTION WHEN OTHERS THEN
     _error := SQLERRM;
   END;
   _duration := clock_timestamp() - _t;
   IF _is_match IS DISTINCT FROM _expected_is_match
   OR _captured IS DISTINCT FROM _expected_captured
-  OR _error    IS DISTINCT FROM _expected_error
+  OR (_error IS NULL) <> (_expected_error IS NULL)
   THEN
     RAISE WARNING E'deviation detected, test_id %\nis_match % => %\ncaptured % => %\nerror % => %',
       _test_id, _expected_is_match, _is_match, _expected_captured, _captured, _expected_error, _error;
     INSERT INTO deviations
-      (test_id, duration, is_match, captured, error)
+      (test_id, server_version_num, duration, is_match, captured, error)
     VALUES
-      (_test_id, _duration, _is_match, _captured, _error);
+      (_test_id, _current_server_version_num, _duration, _is_match, _captured, _error);
     _deviations := _deviations + 1;
   END IF;
   IF _duration > _min_log_duration THEN

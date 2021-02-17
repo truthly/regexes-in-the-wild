@@ -4,23 +4,23 @@ CREATE TABLE performance_test AS
 SELECT
   subjects.subject,
   patterns.pattern,
+  patterns.flags,
   tests.is_match,
   tests.captured
 FROM tests
 JOIN subjects ON subjects.subject_id = tests.subject_id
 JOIN patterns ON patterns.pattern_id = subjects.pattern_id
-JOIN server_versions ON server_versions.server_version_num = tests.server_version_num
-WHERE server_versions.server_version = current_setting('server_version')
-AND tests.error IS NULL
+WHERE tests.error IS NULL
 ;
 
 \timing
 
 SELECT now();
 
+SELECT version();
 SELECT
-  is_match <> (subject ~ pattern),
-  captured IS DISTINCT FROM regexp_match(subject, pattern),
+  is_match <> (subject ~ pattern) AS is_match_diff,
+  captured IS DISTINCT FROM regexp_match(subject, pattern, flags) AS captured_diff,
   COUNT(*)
 FROM performance_test
 GROUP BY 1,2
