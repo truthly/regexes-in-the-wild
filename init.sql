@@ -131,11 +131,20 @@ error text,
 PRIMARY KEY (deviation_id)
 );
 
+CREATE OR REPLACE FUNCTION shrink_text(text,integer) RETURNS text LANGUAGE sql AS $$
+SELECT CASE WHEN length($1) < $2 THEN $1 ELSE
+  format('%s ... %s chars ... %s', m[1], length(m[2]), m[3])
+END
+FROM (
+  SELECT regexp_matches($1,format('^(.{1,%1$s})(.*?)(.{1,%1$s})$',$2/2)) AS m
+) AS q
+$$;
+
 CREATE VIEW vdeviations AS
 SELECT
-patterns.pattern,
+shrink_text(patterns.pattern,80) AS pattern,
 patterns.flags,
-subjects.subject,
+shrink_text(subjects.subject,80) AS subject,
 subjects.count,
 test_server_version.server_version AS a_server_version,
 tests.duration AS a_duration,
