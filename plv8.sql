@@ -75,9 +75,6 @@ LOOP
   BEGIN
     _is_match := regexp_test_v8(_subject, _pattern, '');
     _captured := regexp_match_v8(_subject, _pattern, _flags);
-    IF cardinality(_captured) = cardinality(regexp_match(_subject,_pattern,_flags))+1 THEN
-      _captured := _captured[2:];
-    END IF;
   EXCEPTION WHEN OTHERS THEN
     _error := SQLERRM;
   END;
